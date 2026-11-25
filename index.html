@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="es" class="overflow-x-hidden scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#060911" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Radar del Dólar en Colombia — En Tiempo Real</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    html, body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: #060911;
+      color: #f8fafc;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .glass {
+      background: rgba(14, 19, 31, 0.94);
+      border: 1px solid #1e293b;
+    }
+    /* Evita zoom molesto en inputs en iOS (mínimo 16px en móvil) */
+    @media (max-width: 640px) {
+      input, select { font-size: 16px !important; }
+    }
+  </style>
+</head>
+<body class="px-3.5 py-4 pb-24 sm:p-6 md:p-8 sm:pb-10 max-w-6xl mx-auto min-h-screen">
+
+  <!-- ENCABEZADO -->
+  <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3.5 pb-4 sm:pb-5 mb-5 sm:mb-6 border-b border-[#1e293b]">
+    <div class="w-full md:w-auto">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#10b981]/15 border border-[#10b981]/40 text-[#34d399] text-[10px] sm:text-[11px] font-extrabold uppercase mb-2">
+        <span class="w-2 h-2 rounded-full bg-[#10b981] animate-pulse shrink-0"></span>
+        <span>En Vivo • TRM + Mercado + Dólar Digital</span>
+      </div>
+      <h1 class="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight leading-tight">
+        💵 Radar Inteligente del Dólar en Colombia
+      </h1>
+      <p class="text-xs sm:text-sm text-[#94a3b8] mt-1 leading-relaxed">
+        Revisa al instante si el dólar está <b>barato, normal o caro</b> frente al último mes y calcula tu compra sin comisiones ocultas.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-2 sm:flex items-center gap-2 w-full md:w-auto shrink-0">
+      <button onclick="compartirOCopiar()" id="btn-copiar" class="min-h-[44px] px-3.5 py-2.5 rounded-xl bg-[#10b981]/15 hover:bg-[#10b981] active:scale-[0.98] text-[#34d399] hover:text-black border border-[#10b981]/40 font-bold text-xs transition flex items-center justify-center gap-1.5">
+        <span>📲</span><span>Compartir</span>
+      </button>
+      <button onclick="cargarDatosEnVivo()" id="btn-actualizar" class="min-h-[44px] px-4 py-2.5 rounded-xl bg-[#1e293b] hover:bg-[#334155] active:scale-[0.98] text-white font-bold text-xs transition flex items-center justify-center gap-1.5">
+        <span>🔄</span><span>Actualizar</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- SEMÁFORO PRINCIPAL DE DECISIÓN -->
+  <section id="card-semaforo" class="rounded-2xl p-4 sm:p-6 mb-5 sm:mb-6 border-2 border-[#38bdf8]/50 bg-gradient-to-br from-[#0e131f] via-[#101c2e] to-[#0e131f] shadow-2xl">
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 sm:pb-5 border-b border-[#1e293b]">
+      <div class="w-full">
+        <div class="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
+          <span id="badge-semaforo" class="px-3 py-1 rounded-full bg-[#38bdf8]/20 text-[#38bdf8] border border-[#38bdf8]/50 text-[10px] sm:text-xs font-black uppercase leading-snug">
+            ⏳ CONSULTANDO EN VIVO...
+          </span>
+          <span class="text-[11px] font-mono text-[#94a3b8]" id="hora-actualizacion">--:--:--</span>
+        </div>
+        <h2 id="titulo-veredicto" class="text-lg sm:text-xl md:text-2xl font-black text-white mt-2.5 leading-snug">
+          Analizando el precio del dólar hoy...
+        </h2>
+        <p id="texto-razon" class="text-xs sm:text-sm text-[#cbd5e1] mt-1.5 leading-relaxed max-w-3xl">
+          Conectando con la Superintendencia Financiera de Colombia (TRM oficial), mercado internacional y dólar digital.
+        </p>
+      </div>
+
+      <!-- Precio objetivo personalizado -->
+      <div class="bg-[#060911] border border-[#1e293b] rounded-xl p-3.5 w-full lg:w-64 shrink-0">
+        <label for="input-objetivo" class="text-[10px] font-bold uppercase text-[#94a3b8] block mb-1.5">🎯 Tu Precio Objetivo (COP):</label>
+        <input id="input-objetivo" type="number" inputmode="numeric" step="10" placeholder="Ej: 3500" oninput="evaluarObjetivo()" class="w-full bg-[#0e131f] border border-[#334155] rounded-lg px-3 py-2 text-sm font-mono font-bold text-[#f59e0b] focus:outline-none focus:border-[#f59e0b]" />
+        <div id="txt-objetivo" class="text-[11px] text-[#94a3b8] mt-1.5 font-mono leading-snug">
+          Escribe a qué precio te gustaría comprar.
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 TARJETAS DE TASAS EN VIVO (2x2 en celular, 4x1 en PC) -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5 mt-4 sm:mt-5">
+      <div class="bg-[#060911] p-3 sm:p-4 rounded-xl border border-[#1e293b] min-w-0">
+        <span class="text-[9px] sm:text-[10px] font-bold uppercase text-[#94a3b8] block truncate">🏛️ TRM Oficial Hoy</span>
+        <span id="val-trm" class="text-lg sm:text-2xl font-mono font-black text-white mt-1 block truncate">--</span>
+        <span id="sub-trm" class="text-[10px] sm:text-[11px] text-[#94a3b8] mt-1 block leading-tight">Superfinanciera</span>
+      </div>
+
+      <div class="bg-[#060911] p-3 sm:p-4 rounded-xl border border-[#1e293b] min-w-0">
+        <span class="text-[9px] sm:text-[10px] font-bold uppercase text-[#38bdf8] block truncate">🌐 Mercado en Vivo</span>
+        <span id="val-mercado" class="text-lg sm:text-2xl font-mono font-black text-[#38bdf8] mt-1 block truncate">--</span>
+        <span id="sub-mercado" class="text-[10px] sm:text-[11px] text-[#94a3b8] mt-1 block leading-tight">Tasa internacional</span>
+      </div>
+
+      <div class="bg-[#060911] p-3 sm:p-4 rounded-xl border border-[#1e293b] min-w-0">
+        <span class="text-[9px] sm:text-[10px] font-bold uppercase text-[#f59e0b] block truncate">⚡ Dólar Digital P2P</span>
+        <span id="val-p2p" class="text-lg sm:text-2xl font-mono font-black text-[#f59e0b] mt-1 block truncate">--</span>
+        <span id="sub-p2p" class="text-[10px] sm:text-[11px] text-[#94a3b8] mt-1 block leading-tight">USDT Colombia</span>
+      </div>
+
+      <div class="bg-[#060911] p-3 sm:p-4 rounded-xl border border-[#1e293b] min-w-0">
+        <span class="text-[9px] sm:text-[10px] font-bold uppercase text-[#a78bfa] block truncate">📊 Promedio 30d</span>
+        <span id="val-prom" class="text-lg sm:text-2xl font-mono font-black text-[#c4b5fd] mt-1 block truncate">--</span>
+        <span id="sub-prom" class="text-[10px] sm:text-[11px] text-[#94a3b8] mt-1 block leading-tight">RSI y semana</span>
+      </div>
+    </div>
+
+    <!-- BARRA VISUAL: ¿ESTÁ BARATO O CARO EN EL MES? -->
+    <div class="mt-4 sm:mt-5 bg-[#060911] p-3.5 sm:p-4 rounded-xl border border-[#1e293b]">
+      <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 text-xs mb-2.5">
+        <span class="font-bold text-white">📍 Posición del Dólar frente a los últimos 30 días</span>
+        <span id="lbl-posicion" class="font-mono text-[11px] sm:text-xs font-bold text-[#38bdf8]">Calculando rango...</span>
+      </div>
+      <div class="relative w-full h-3.5 rounded-full bg-gradient-to-r from-[#10b981] via-[#38bdf8] to-[#ef4444]">
+        <div id="marcador-rango" class="absolute -top-1 w-2.5 bg-white rounded-full shadow-[0_0_12px_#ffffff] border border-black transition-all duration-500" style="left: 50%; height: 22px;"></div>
+      </div>
+      <div class="grid grid-cols-3 gap-1 text-[10px] sm:text-[11px] font-mono text-[#94a3b8] mt-2.5">
+        <div class="text-left text-[#34d399]">🟢 Mín:<br class="sm:hidden" /> <b id="lbl-min">--</b></div>
+        <div class="text-center">Prom:<br class="sm:hidden" /> <b id="lbl-mid" class="text-white">--</b></div>
+        <div class="text-right text-[#f87171]">🔴 Máx:<br class="sm:hidden" /> <b id="lbl-max">--</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GRÁFICA HISTÓRICA EN VIVO -->
+  <section id="sec-grafica" class="glass rounded-2xl p-4 sm:p-6 mb-5 sm:mb-6 shadow-xl">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3.5 mb-4 border-b border-[#1e293b]">
+      <div>
+        <h2 class="text-sm sm:text-base md:text-lg font-black text-white">📈 Evolución Real del Dólar (TRM Oficial)</h2>
+        <p class="text-[11px] sm:text-xs text-[#94a3b8] mt-0.5 leading-snug">
+          Azul = TRM diaria • Amarilla = Promedio • Verde = Zona barata sugerida.
+        </p>
+      </div>
+      <div class="grid grid-cols-2 sm:flex w-full sm:w-auto bg-[#060911] p-1 rounded-xl border border-[#1e293b] text-xs font-bold">
+        <button onclick="cambiarVentana(30)" id="btn-30d" class="min-h-[36px] px-3 py-1.5 rounded-lg bg-[#38bdf8] text-black transition">30 días</button>
+        <button onclick="cambiarVentana(60)" id="btn-60d" class="min-h-[36px] px-3 py-1.5 rounded-lg text-[#94a3b8] hover:text-white transition">60 días</button>
+      </div>
+    </div>
+    <div class="relative h-[220px] sm:h-[280px] md:h-[320px] w-full">
+      <canvas id="chart-dolar"></canvas>
+    </div>
+  </section>
+
+  <!-- CALCULADORA INTERACTIVA + ESTRATEGIA ESCALONADA -->
+  <section id="sec-calculadora" class="glass rounded-2xl p-4 sm:p-6 mb-5 sm:mb-6 shadow-xl">
+    <div class="pb-3.5 mb-4 sm:mb-5 border-b border-[#1e293b]">
+      <h2 class="text-sm sm:text-base md:text-lg font-black text-white">🧮 Calculadora de Inversión (Pesos → Dólares)</h2>
+      <p class="text-[11px] sm:text-xs text-[#94a3b8] mt-0.5 leading-snug">
+        Calcula cuántos dólares reales recibirías hoy, cómo dividir tu compra en 3 partes y cuánto ganaría tu inversión si el dólar sube.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
+      <!-- Controles -->
+      <div class="space-y-4">
+        <div>
+          <label for="calc-cop" class="text-xs font-bold text-[#cbd5e1] block mb-1.5">1. ¿Cuántos pesos (COP) quieres invertir?</label>
+          <input id="calc-cop" type="number" inputmode="numeric" value="1000000" step="50000" oninput="recalcular()" class="w-full bg-[#060911] border border-[#334155] rounded-xl px-4 py-3 text-lg font-mono font-black text-[#10b981] focus:outline-none focus:border-[#10b981]" />
+          <div class="grid grid-cols-3 sm:flex sm:flex-wrap gap-2 mt-2.5">
+            <button onclick="setMonto(200000)" class="min-h-[38px] px-2.5 py-1.5 rounded-lg bg-[#060911] hover:bg-[#1e293b] active:bg-[#1e293b] border border-[#1e293b] text-[11px] font-mono text-[#cbd5e1]">$200 mil</button>
+            <button onclick="setMonto(500000)" class="min-h-[38px] px-2.5 py-1.5 rounded-lg bg-[#060911] hover:bg-[#1e293b] active:bg-[#1e293b] border border-[#1e293b] text-[11px] font-mono text-[#cbd5e1]">$500 mil</button>
+            <button onclick="setMonto(1000000)" class="min-h-[38px] px-2.5 py-1.5 rounded-lg bg-[#060911] hover:bg-[#1e293b] active:bg-[#1e293b] border border-[#1e293b] text-[11px] font-mono text-[#cbd5e1]">$1 millón</button>
+            <button onclick="setMonto(2000000)" class="min-h-[38px] px-2.5 py-1.5 rounded-lg bg-[#060911] hover:bg-[#1e293b] active:bg-[#1e293b] border border-[#1e293b] text-[11px] font-mono text-[#cbd5e1]">$2M</button>
+            <button onclick="setMonto(5000000)" class="min-h-[38px] px-2.5 py-1.5 rounded-lg bg-[#060911] hover:bg-[#1e293b] active:bg-[#1e293b] border border-[#1e293b] text-[11px] font-mono text-[#cbd5e1] col-span-2 sm:col-span-1">$5 millones</button>
+          </div>
+        </div>
+
+        <div>
+          <label for="calc-canal" class="text-xs font-bold text-[#cbd5e1] block mb-1.5">2. ¿Dónde piensas comprar los dólares?</label>
+          <select id="calc-canal" onchange="recalcular()" class="w-full min-h-[46px] bg-[#060911] border border-[#334155] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-[#38bdf8]">
+            <option value="app">📱 App Dólar Digital (DolarApp / Littio / Global66 ~0.6%)</option>
+            <option value="p2p">⚡ Dólar Digital Cripto (Binance P2P — En vivo)</option>
+            <option value="trm">🏛️ Tasa Oficial TRM (Referencia sin comisión)</option>
+            <option value="casa">🏦 Banco o Casa de Cambio tradicional (~2.0%)</option>
+          </select>
+        </div>
+
+        <!-- Estrategia DCA 40/30/30 -->
+        <div class="bg-[#060911] p-3.5 sm:p-4 rounded-xl border border-[#38bdf8]/30">
+          <div class="text-xs font-black text-[#38bdf8] mb-1.5">🧠 Plan Inteligente: Compra en 3 Partes (40 / 30 / 30)</div>
+          <p class="text-[11px] text-[#94a3b8] mb-3 leading-snug">
+            Para no arriesgarte a comprar todo justo antes de una bajada, divide tu inversión así:
+          </p>
+          <div class="grid grid-cols-3 gap-1.5 sm:gap-2 font-mono text-center">
+            <div class="bg-[#0e131f] p-2 sm:p-2.5 rounded-lg border border-[#1e293b] min-w-0">
+              <span class="text-[9px] sm:text-[10px] text-[#34d399] block">1ra (40%)</span>
+              <b id="dca-1" class="text-white text-[11px] sm:text-xs block truncate mt-0.5">$400.000</b>
+              <span class="text-[8px] sm:text-[9px] text-[#64748b] block mt-0.5">Verde/Azul</span>
+            </div>
+            <div class="bg-[#0e131f] p-2 sm:p-2.5 rounded-lg border border-[#1e293b] min-w-0">
+              <span class="text-[9px] sm:text-[10px] text-[#38bdf8] block">2da (30%)</span>
+              <b id="dca-2" class="text-white text-[11px] sm:text-xs block truncate mt-0.5">$300.000</b>
+              <span class="text-[8px] sm:text-[9px] text-[#64748b] block mt-0.5">Si baja -$50</span>
+            </div>
+            <div class="bg-[#0e131f] p-2 sm:p-2.5 rounded-lg border border-[#1e293b] min-w-0">
+              <span class="text-[9px] sm:text-[10px] text-[#f59e0b] block">3ra (30%)</span>
+              <b id="dca-3" class="text-white text-[11px] sm:text-xs block truncate mt-0.5">$300.000</b>
+              <span class="text-[8px] sm:text-[9px] text-[#64748b] block mt-0.5">Gangas</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resultados -->
+      <div class="bg-[#060911] p-4 sm:p-5 rounded-2xl border border-[#1e293b] flex flex-col justify-between">
+        <div>
+          <span class="text-[10px] font-bold uppercase text-[#94a3b8]">Recibirías aproximadamente hoy:</span>
+          <div class="mt-1">
+            <span id="calc-usd-out" class="text-3xl sm:text-4xl font-mono font-black text-[#10b981] break-all">$0.00 USD</span>
+          </div>
+          <div id="calc-tasa-usada" class="text-[11px] sm:text-xs font-mono text-[#94a3b8] mt-1 leading-snug">
+            Tasa estimada: -- COP por dólar
+          </div>
+
+          <div class="mt-4 sm:mt-5 pt-4 border-t border-[#1e293b]">
+            <div class="text-xs font-black text-white mb-3">📊 Si luego el dólar sube, ¿cuánto tendrías en pesos?</div>
+            <div class="space-y-2.5 font-mono text-xs">
+              <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 bg-[#0e131f] p-3 rounded-xl border border-[#1e293b]">
+                <span class="text-[#cbd5e1] text-[11px] sm:text-xs">Si sube <b>+3%</b> (<span id="esc-p3">--</span> COP):</span>
+                <span id="esc-g3" class="font-black text-[#34d399] text-xs sm:text-right">--</span>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 bg-[#0e131f] p-3 rounded-xl border border-[#1e293b]">
+                <span class="text-[#cbd5e1] text-[11px] sm:text-xs">Si sube <b>+6%</b> (<span id="esc-p6">--</span> COP):</span>
+                <span id="esc-g6" class="font-black text-[#34d399] text-xs sm:text-right">--</span>
+              </div>
+              <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 bg-[#0e131f] p-3 rounded-xl border border-[#1e293b]">
+                <span class="text-[#cbd5e1] text-[11px] sm:text-xs">Si sube <b>+10%</b> (<span id="esc-p10">--</span> COP):</span>
+                <span id="esc-g10" class="font-black text-[#10b981] text-xs sm:text-right">--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-[#1e293b] text-[11px] text-[#94a3b8] leading-relaxed">
+          💡 <b>Dato extra:</b> Si guardas esos dólares en una cuenta remunerada en USD (~4% anual), al año sumarías aprox. <b id="calc-rend-anual" class="text-[#f59e0b]">--</b> adicionales.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GUÍA: DÓNDE COMPRAR DÓLARES EN COLOMBIA -->
+  <section id="sec-guia" class="glass rounded-2xl p-4 sm:p-6 mb-5 sm:mb-6 shadow-xl">
+    <h2 class="text-sm sm:text-base md:text-lg font-black text-white mb-1">🏦 ¿Dónde y Cómo Comprar Dólares desde Colombia?</h2>
+    <p class="text-[11px] sm:text-xs text-[#94a3b8] mb-4 sm:mb-5">Comparativa rápida y honesta de las opciones más usadas hoy:</p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
+      <div class="bg-[#060911] p-4 rounded-xl border border-[#10b981]/40">
+        <div class="flex justify-between items-center gap-2 mb-2">
+          <span class="font-black text-white text-sm">📱 Apps Dólar Digital</span>
+          <span class="px-2 py-0.5 rounded bg-[#10b981]/20 text-[#34d399] text-[10px] font-bold shrink-0">Más fácil</span>
+        </div>
+        <p class="text-[#cbd5e1] mb-2"><b>Ejemplos:</b> DolarApp, Littio, Global66.</p>
+        <ul class="space-y-1.5 text-[#94a3b8] text-[11px] leading-snug">
+          <li>✅ Recargas por PSE desde tu banco colombiano.</li>
+          <li>✅ Tasa muy cercana a la TRM (~0.5%–1%).</li>
+          <li>✅ Algunas pagan 3%–5% anual en dólares.</li>
+          <li>⚠️ Revisa siempre si cobran cuota o comisión de retiro.</li>
+        </ul>
+      </div>
+
+      <div class="bg-[#060911] p-4 rounded-xl border border-[#38bdf8]/40">
+        <div class="flex justify-between items-center gap-2 mb-2">
+          <span class="font-black text-white text-sm">📈 Bolsa EE. UU. / ETFs</span>
+          <span class="px-2 py-0.5 rounded bg-[#38bdf8]/20 text-[#38bdf8] text-[10px] font-bold shrink-0">Largo plazo</span>
+        </div>
+        <p class="text-[#cbd5e1] mb-2"><b>Ejemplos:</b> Trii (ETFs), Hapi, Tyba, IBKR.</p>
+        <ul class="space-y-1.5 text-[#94a3b8] text-[11px] leading-snug">
+          <li>✅ Compras dólares + acciones top (ej. <b>S&amp;P 500</b>).</li>
+          <li>✅ Pensado para hacer crecer patrimonio a 1–5+ años.</li>
+          <li>⚠️ Sube y baja diario; usar solo plata que no necesites ya.</li>
+        </ul>
+      </div>
+
+      <div class="bg-[#060911] p-4 rounded-xl border border-[#f59e0b]/40">
+        <div class="flex justify-between items-center gap-2 mb-2">
+          <span class="font-black text-white text-sm">⚡ Dólar Cripto P2P</span>
+          <span class="px-2 py-0.5 rounded bg-[#f59e0b]/20 text-[#fbbf24] text-[10px] font-bold shrink-0">24/7 Rápido</span>
+        </div>
+        <p class="text-[#cbd5e1] mb-2"><b>Ejemplos:</b> Binance P2P (USDT/USDC), Buda, Bitso.</p>
+        <ul class="space-y-1.5 text-[#94a3b8] text-[11px] leading-snug">
+          <li>✅ Compras y vendes 24/7 con Nequi, Daviplata o Bancolombia.</li>
+          <li>✅ A veces está incluso más barato que la TRM oficial.</li>
+          <li>⚠️ Solo comerciantes verificados (99%+ reputación).</li>
+        </ul>
+      </div>
+
+      <div class="bg-[#060911] p-4 rounded-xl border border-[#1e293b]">
+        <div class="flex justify-between items-center gap-2 mb-2">
+          <span class="font-black text-white text-sm">💵 Efectivo / Cambio</span>
+          <span class="px-2 py-0.5 rounded bg-[#1e293b] text-[#94a3b8] text-[10px] font-bold shrink-0">Físico</span>
+        </div>
+        <p class="text-[#cbd5e1] mb-2"><b>Ideal solo para:</b> viajes o ahorro físico puntual.</p>
+        <ul class="space-y-1.5 text-[#94a3b8] text-[11px] leading-snug">
+          <li>✅ Tienes los billetes en tu mano.</li>
+          <li>❌ Spread alto (pierdes 2%–4% al comprar y vender).</li>
+          <li>❌ No genera rendimiento y tiene riesgo de pérdida.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 REGLAS DE ORO -->
+  <section class="glass rounded-2xl p-4 sm:p-6 mb-6 shadow-xl">
+    <h2 class="text-sm sm:text-base md:text-lg font-black text-white mb-3.5">🛡️ 5 Reglas de Oro antes de Comprar Dólares</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+      <div class="bg-[#060911] p-3.5 rounded-xl border border-[#1e293b]">
+        <div class="font-black text-[#10b981] mb-1">1. Nunca todo de golpe</div>
+        <p class="text-[#94a3b8] text-[11px] leading-snug">Divide tu presupuesto en 2 o 3 compras en días distintos para promediar mejor precio.</p>
+      </div>
+      <div class="bg-[#060911] p-3.5 rounded-xl border border-[#1e293b]">
+        <div class="font-black text-[#38bdf8] mb-1">2. Compra en calma</div>
+        <p class="text-[#94a3b8] text-[11px] leading-snug">Cuando las noticias dicen "el dólar se disparó", suele estar caro. Compra cuando esté verde o azul aquí.</p>
+      </div>
+      <div class="bg-[#060911] p-3.5 rounded-xl border border-[#1e293b]">
+        <div class="font-black text-[#f59e0b] mb-1">3. Cuida el spread</div>
+        <p class="text-[#94a3b8] text-[11px] leading-snug">Compara siempre contra la <b>TRM Oficial</b> de arriba. Si te cobran más de +2%, busca mejor tasa.</p>
+      </div>
+      <div class="bg-[#060911] p-3.5 rounded-xl border border-[#1e293b]">
+        <div class="font-black text-[#a78bfa] mb-1">4. Piensa a meses/años</div>
+        <p class="text-[#94a3b8] text-[11px] leading-snug">El dólar protege tus ahorros y metas (viajes, estudios, inversión), no es para hacerse rico de hoy a mañana.</p>
+      </div>
+      <div class="bg-[#060911] p-3.5 rounded-xl border border-[#1e293b] sm:col-span-2 lg:col-span-1">
+        <div class="font-black text-[#f87171] mb-1">5. Cero "fórmulas mágicas"</div>
+        <p class="text-[#94a3b8] text-[11px] leading-snug">Aléjate de quien prometa 10% o 20% mensual "garantizado". Usa solo plataformas reconocidas.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="text-center text-[11px] text-[#64748b] pb-4 leading-relaxed">
+    Fuentes públicas oficiales en tiempo real: <b>datos.gov.co (Superfinanciera Colombia)</b>, <b>Open ExchangeRate</b> y <b>CriptoYa</b>.<br />
+    Herramienta educativa e informativa — no constituye asesoría financiera personalizada.
+  </footer>
+
+  <!-- BARRA INFERIOR FIJA SOLO PARA CELULAR -->
+  <nav class="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0b101c]/95 backdrop-blur-md border-t border-[#1e293b] px-3 py-2 grid grid-cols-4 gap-1.5 text-[10px] font-bold">
+    <a href="#card-semaforo" class="flex flex-col items-center justify-center py-1.5 rounded-lg bg-[#0e131f] text-[#34d399] active:bg-[#1e293b]">
+      <span class="text-sm leading-none">🚦</span>
+      <span class="mt-1">Hoy</span>
+    </a>
+    <a href="#sec-grafica" class="flex flex-col items-center justify-center py-1.5 rounded-lg bg-[#0e131f] text-[#38bdf8] active:bg-[#1e293b]">
+      <span class="text-sm leading-none">📈</span>
+      <span class="mt-1">Gráfica</span>
+    </a>
+    <a href="#sec-calculadora" class="flex flex-col items-center justify-center py-1.5 rounded-lg bg-[#0e131f] text-[#f59e0b] active:bg-[#1e293b]">
+      <span class="text-sm leading-none">🧮</span>
+      <span class="mt-1">Calcular</span>
+    </a>
+    <a href="#sec-guia" class="flex flex-col items-center justify-center py-1.5 rounded-lg bg-[#0e131f] text-[#c4b5fd] active:bg-[#1e293b]">
+      <span class="text-sm leading-none">🏦</span>
+      <span class="mt-1">Dónde</span>
+    </a>
+  </nav>
+
+  <script>
+    let historialCompleto = [];
+    let ventanaDias = 30;
+    let trmActual = null;
+    let tasaMercado = null;
+    let p2pCompra = null;
+    let p2pVenta = null;
+    let veredictoActualTexto = "";
+    let chartDolar = null;
+
+    function fmtCOP(n, dec = 0) {
+      if (n == null || isNaN(n)) return "--";
+      return "$" + Number(n).toLocaleString("es-CO", {
+        minimumFractionDigits: dec,
+        maximumFractionDigits: dec
+      });
+    }
+
+    function calcularRSI(valores, periodo = 14) {
+      if (valores.length < periodo + 1) return null;
+      const deltas = [];
+      for (let i = 1; i < valores.length; i++) deltas.push(valores[i] - valores[i - 1]);
+      let avgGain = 0, avgLoss = 0;
+      for (let i = 0; i < periodo; i++) {
+        avgGain += Math.max(deltas[i], 0);
+        avgLoss += Math.max(-deltas[i], 0);
+      }
+      avgGain /= periodo;
+      avgLoss /= periodo;
+      for (let i = periodo; i < deltas.length; i++) {
+        avgGain = ((avgGain * (periodo - 1)) + Math.max(deltas[i], 0)) / periodo;
+        avgLoss = ((avgLoss * (periodo - 1)) + Math.max(-deltas[i], 0)) / periodo;
+      }
+      if (avgLoss === 0) return avgGain > 0 ? 100 : 50;
+      const rs = avgGain / avgLoss;
+      return Math.round((100 - (100 / (1 + rs))) * 10) / 10;
+    }
+
+    async function fetchSeguro(url, timeoutMs = 8000) {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, { signal: ctrl.signal });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return await res.json();
+      } finally {
+        clearTimeout(t);
+      }
+    }
+
+    async function cargarDatosEnVivo() {
+      const btn = document.getElementById("btn-actualizar");
+      btn.innerHTML = "<span>⏳</span><span>Cargando...</span>";
+      btn.disabled = true;
+
+      try {
+        const [trmRes, erRes, p2pRes] = await Promise.allSettled([
+          fetchSeguro("https://www.datos.gov.co/resource/32sa-8pi3.json?%24order=vigenciadesde%20DESC&%24limit=65"),
+          fetchSeguro("https://open.er-api.com/v6/latest/USD"),
+          fetchSeguro("https://criptoya.com/api/usdt/cop/1")
+        ]);
+
+        if (trmRes.status === "fulfilled" && Array.isArray(trmRes.value) && trmRes.value.length > 0) {
+          const mapaFechas = new Map();
+          trmRes.value.forEach(r => {
+            const f = String(r.vigenciadesde || "").slice(0, 10);
+            const v = parseFloat(r.valor);
+            if (f && !isNaN(v) && !mapaFechas.has(f)) {
+              mapaFechas.set(f, v);
+            }
+          });
+          historialCompleto = Array.from(mapaFechas.entries())
+            .map(([fecha, valor]) => ({ fecha, valor }))
+            .sort((a, b) => a.fecha.localeCompare(b.fecha));
+          trmActual = historialCompleto[historialCompleto.length - 1].valor;
+        }
+
+        if (erRes.status === "fulfilled" && erRes.value && erRes.value.rates && erRes.value.rates.COP) {
+          tasaMercado = parseFloat(erRes.value.rates.COP);
+        }
+
+        if (!trmActual && tasaMercado) trmActual = tasaMercado;
+
+        if (p2pRes.status === "fulfilled" && p2pRes.value) {
+          const bp = p2pRes.value.binancep2p || p2pRes.value.buda || p2pRes.value.bitso || {};
+          p2pCompra = bp.ask ? parseFloat(bp.ask) : null;
+          p2pVenta = bp.bid ? parseFloat(bp.bid) : null;
+        }
+
+        actualizarInterfaz();
+      } catch (e) {
+        console.error(e);
+        document.getElementById("titulo-veredicto").innerText = "Sin conexión en este momento.";
+        document.getElementById("texto-razon").innerText = "Revisa tu internet y toca 🔄 Actualizar arriba.";
+      } finally {
+        btn.innerHTML = "<span>🔄</span><span>Actualizar</span>";
+        btn.disabled = false;
+      }
+    }
+
+    function actualizarInterfaz() {
+      const ahora = new Date();
+      document.getElementById("hora-actualizacion").innerText = ahora.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+
+      const serie30 = historialCompleto.slice(-30);
+      const vals30 = serie30.map(x => x.valor);
+      const precioRef = trmActual || tasaMercado || 0;
+
+      document.getElementById("val-trm").innerText = fmtCOP(trmActual, 0);
+      if (vals30.length >= 2) {
+        const ayer = vals30[vals30.length - 2];
+        const dif = trmActual - ayer;
+        const pct = (dif / ayer) * 100;
+        const signo = dif >= 0 ? "+" : "";
+        const col = dif >= 0 ? "text-[#f87171]" : "text-[#34d399]";
+        document.getElementById("sub-trm").innerHTML = `vs ayer: <b class="${col}">${signo}${pct.toFixed(2)}%</b> (${fmtCOP(trmActual, 2)})`;
+      }
+
+      document.getElementById("val-mercado").innerText = tasaMercado ? fmtCOP(tasaMercado, 0) : fmtCOP(trmActual, 0);
+      if (tasaMercado && trmActual) {
+        const dM = ((tasaMercado - trmActual) / trmActual) * 100;
+        document.getElementById("sub-mercado").innerHTML = dM < -0.15
+          ? `<b class="text-[#34d399]">${dM.toFixed(2)}% bajo TRM</b>`
+          : dM > 0.15
+            ? `<b class="text-[#f87171]">+${dM.toFixed(2)}% sobre TRM</b>`
+            : "A la par con TRM";
+      }
+
+      if (p2pCompra) {
+        document.getElementById("val-p2p").innerText = fmtCOP(p2pCompra, 0);
+        const difP = trmActual ? ((p2pCompra - trmActual) / trmActual) * 100 : 0;
+        const nota = difP <= -0.3
+          ? `<b class="text-[#34d399]">${Math.abs(difP).toFixed(1)}% más barato</b>`
+          : difP >= 0.3
+            ? `<b class="text-[#fbbf24]">+${difP.toFixed(1)}% vs TRM</b>`
+            : "Igual a TRM";
+        document.getElementById("sub-p2p").innerHTML = `Venta ${fmtCOP(p2pVenta, 0)} • ${nota}`;
+      } else {
+        document.getElementById("val-p2p").innerText = fmtCOP(precioRef * 1.005, 0);
+        document.getElementById("sub-p2p").innerText = "Apps dólar (~+0.5%)";
+      }
+
+      if (vals30.length >= 5) {
+        const min30 = Math.min(...vals30);
+        const max30 = Math.max(...vals30);
+        const prom30 = vals30.reduce((a, b) => a + b, 0) / vals30.length;
+        const tasaAnalisis = tasaMercado || trmActual;
+        const posPct = max30 > min30 ? Math.max(0, Math.min(100, ((tasaAnalisis - min30) / (max30 - min30)) * 100)) : 50;
+        const diffPromPct = ((tasaAnalisis - prom30) / prom30) * 100;
+        const rsi = calcularRSI(vals30, 14);
+        const chg7 = vals30.length >= 8 ? (((vals30[vals30.length - 1] - vals30[vals30.length - 8]) / vals30[vals30.length - 8]) * 100) : 0;
+
+        document.getElementById("val-prom").innerText = fmtCOP(prom30, 0);
+        document.getElementById("sub-prom").innerHTML = `7d: <b>${chg7 >= 0 ? "+" : ""}${chg7.toFixed(1)}%</b> • RSI <b>${rsi != null ? rsi : "--"}</b>`;
+
+        document.getElementById("lbl-min").innerText = fmtCOP(min30, 0);
+        document.getElementById("lbl-mid").innerText = fmtCOP(prom30, 0);
+        document.getElementById("lbl-max").innerText = fmtCOP(max30, 0);
+        document.getElementById("lbl-posicion").innerText = `Hoy ${fmtCOP(tasaAnalisis, 0)} (${posPct.toFixed(0)}% del mes)`;
+        document.getElementById("marcador-rango").style.left = `calc(${posPct}% - 5px)`;
+
+        const inpObj = document.getElementById("input-objetivo");
+        if (!inpObj.value) {
+          inpObj.placeholder = `Ej: ${Math.round((min30 + prom30) / 2)}`;
+        }
+
+        const card = document.getElementById("card-semaforo");
+        const badge = document.getElementById("badge-semaforo");
+        const tit = document.getElementById("titulo-veredicto");
+        const raz = document.getElementById("texto-razon");
+
+        if (posPct <= 35 || diffPromPct <= -1.0) {
+          card.className = "rounded-2xl p-4 sm:p-6 mb-5 sm:mb-6 border-2 border-[#10b981]/70 bg-gradient-to-br from-[#0e131f] via-[#0d241d] to-[#0e131f] shadow-2xl";
+          badge.className = "px-3 py-1 rounded-full bg-[#10b981]/20 text-[#34d399] border border-[#10b981] text-[10px] sm:text-xs font-black uppercase";
+          badge.innerText = "🟢 VERDE • BUEN MOMENTO PARA COMPRAR";
+          tit.innerText = "Zona de Descuento: dólar barato frente al último mes";
+          raz.innerHTML = `El dólar en vivo (<b>${fmtCOP(tasaAnalisis, 0)} COP</b>) está en el <b>tercio bajo del mes</b> (rango ${fmtCOP(min30, 0)} – ${fmtCOP(max30, 0)}, promedio ${fmtCOP(prom30, 0)}). Buen momento para hacer compra escalonada.`;
+          veredictoActualTexto = "🟢 BUEN MOMENTO PARA COMPRAR (Zona barata del mes)";
+        } else if (posPct >= 70 || diffPromPct >= 1.2) {
+          card.className = "rounded-2xl p-4 sm:p-6 mb-5 sm:mb-6 border-2 border-[#ef4444]/70 bg-gradient-to-br from-[#0e131f] via-[#261217] to-[#0e131f] shadow-2xl";
+          badge.className = "px-3 py-1 rounded-full bg-[#ef4444]/20 text-[#f87171] border border-[#ef4444] text-[10px] sm:text-xs font-black uppercase";
+          badge.innerText = "🔴 ROJO • DÓLAR CARO (MEJOR ESPERAR)";
+          tit.innerText = "Zona alta del mes: mejor esperar retroceso si no urge";
+          raz.innerHTML = `El dólar hoy (<b>${fmtCOP(tasaAnalisis, 0)} COP</b>) está cerca de los máximos del mes (promedio <b>${fmtCOP(prom30, 0)}</b>, mínimo <b>${fmtCOP(min30, 0)}</b>). Si no tienes afán, espera a que baje hacia el promedio.`;
+          veredictoActualTexto = "🔴 DÓLAR EN ZONA ALTA DEL MES (Mejor esperar retroceso)";
+        } else {
+          card.className = "rounded-2xl p-4 sm:p-6 mb-5 sm:mb-6 border-2 border-[#38bdf8]/60 bg-gradient-to-br from-[#0e131f] via-[#101c2e] to-[#0e131f] shadow-2xl";
+          badge.className = "px-3 py-1 rounded-full bg-[#38bdf8]/20 text-[#38bdf8] border border-[#38bdf8] text-[10px] sm:text-xs font-black uppercase";
+          badge.innerText = "🔵 AZUL • PRECIO NORMAL (COMPRA POR PARTES)";
+          tit.innerText = "Zona intermedia: ideal para comprar escalonado";
+          raz.innerHTML = `El dólar hoy (<b>${fmtCOP(tasaAnalisis, 0)} COP</b>) está cerca del promedio de 30 días (<b>${fmtCOP(prom30, 0)}</b>). Si quieres empezar, entra con el <b>30%–40%</b> y guarda el resto por si baja.`;
+          veredictoActualTexto = "🔵 PRECIO NORMAL (Ideal para compra escalonada)";
+        }
+      }
+
+      renderizarGrafica();
+      recalcular();
+      evaluarObjetivo();
+    }
+
+    function cambiarVentana(dias) {
+      ventanaDias = dias;
+      document.getElementById("btn-30d").className = dias === 30 ? "min-h-[36px] px-3 py-1.5 rounded-lg bg-[#38bdf8] text-black transition" : "min-h-[36px] px-3 py-1.5 rounded-lg text-[#94a3b8] hover:text-white transition";
+      document.getElementById("btn-60d").className = dias === 60 ? "min-h-[36px] px-3 py-1.5 rounded-lg bg-[#38bdf8] text-black transition" : "min-h-[36px] px-3 py-1.5 rounded-lg text-[#94a3b8] hover:text-white transition";
+      renderizarGrafica();
+    }
+
+    function renderizarGrafica() {
+      const serie = historialCompleto.slice(-ventanaDias);
+      if (!serie.length) return;
+
+      const esMovil = window.innerWidth < 520;
+      const labels = serie.map(x => x.fecha.slice(5));
+      const vals = serie.map(x => x.valor);
+      const minV = Math.min(...vals);
+      const maxV = Math.max(...vals);
+      const prom = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const zonaBarata = minV + ((maxV - minV) * 0.33);
+
+      const ctx = document.getElementById("chart-dolar").getContext("2d");
+      if (chartDolar) chartDolar.destroy();
+
+      chartDolar = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "TRM Oficial",
+              data: vals,
+              borderColor: "#38bdf8",
+              backgroundColor: "rgba(56, 189, 248, 0.12)",
+              fill: true,
+              tension: 0.3,
+              borderWidth: esMovil ? 2 : 2.5,
+              pointRadius: esMovil ? 1.5 : 2.5,
+              pointHoverRadius: 6
+            },
+            {
+              label: `Prom (${fmtCOP(prom, 0)})`,
+              data: vals.map(() => Math.round(prom * 100) / 100),
+              borderColor: "#f59e0b",
+              borderDash: [6, 5],
+              borderWidth: 1.5,
+              pointRadius: 0,
+              fill: false
+            },
+            {
+              label: `Barato (${fmtCOP(zonaBarata, 0)})`,
+              data: vals.map(() => Math.round(zonaBarata * 100) / 100),
+              borderColor: "#10b981",
+              borderDash: [4, 4],
+              borderWidth: 1.5,
+              pointRadius: 0,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: {
+              labels: {
+                color: "#cbd5e1",
+                boxWidth: esMovil ? 10 : 16,
+                padding: esMovil ? 8 : 14,
+                font: { family: "Plus Jakarta Sans", size: esMovil ? 10 : 11, weight: "bold" }
+              }
+            },
+            tooltip: {
+              backgroundColor: "#0e131f",
+              borderColor: "#334155",
+              borderWidth: 1,
+              callbacks: {
+                label: c => `${c.dataset.label.split(" (")[0]}: ${fmtCOP(c.parsed.y, 2)} COP`
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: "#94a3b8", font: { family: "JetBrains Mono", size: esMovil ? 9 : 10 }, maxTicksLimit: esMovil ? 5 : 10 },
+              grid: { color: "rgba(30,41,59,0.4)" }
+            },
+            y: {
+              ticks: {
+                color: "#94a3b8",
+                font: { family: "JetBrains Mono", size: esMovil ? 9 : 10 },
+                maxTicksLimit: esMovil ? 5 : 7,
+                callback: v => "$" + Math.round(Number(v)).toLocaleString("es-CO")
+              },
+              grid: { color: "rgba(30,41,59,0.6)" }
+            }
+          }
+        }
+      });
+    }
+
+    function setMonto(m) {
+      document.getElementById("calc-cop").value = m;
+      recalcular();
+    }
+
+    function recalcular() {
+      const cop = parseFloat(document.getElementById("calc-cop").value || "0");
+      const canal = document.getElementById("calc-canal").value;
+      const base = tasaMercado || trmActual || 3550;
+
+      let tasa = base;
+      let etiqueta = "TRM / Mercado";
+      if (canal === "app") {
+        tasa = base * 1.006;
+        etiqueta = "App Dólar (~+0.6%)";
+      } else if (canal === "p2p") {
+        tasa = p2pCompra || (base * 1.005);
+        etiqueta = p2pCompra ? "Binance P2P vivo" : "P2P (~+0.5%)";
+      } else if (canal === "trm") {
+        tasa = trmActual || base;
+        etiqueta = "TRM Oficial";
+      } else if (canal === "casa") {
+        tasa = (trmActual || base) * 1.02;
+        etiqueta = "Banco/Cambio (~+2%)";
+      }
+
+      const usd = cop > 0 && tasa > 0 ? cop / tasa : 0;
+      document.getElementById("calc-usd-out").innerText = `$${usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+      document.getElementById("calc-tasa-usada").innerText = `Tasa (${etiqueta}): ${fmtCOP(tasa, 2)} COP`;
+
+      document.getElementById("dca-1").innerText = fmtCOP(cop * 0.40, 0);
+      document.getElementById("dca-2").innerText = fmtCOP(cop * 0.30, 0);
+      document.getElementById("dca-3").innerText = fmtCOP(cop * 0.30, 0);
+
+      const p3 = tasa * 1.03, p6 = tasa * 1.06, p10 = tasa * 1.10;
+      document.getElementById("esc-p3").innerText = fmtCOP(p3, 0);
+      document.getElementById("esc-p6").innerText = fmtCOP(p6, 0);
+      document.getElementById("esc-p10").innerText = fmtCOP(p10, 0);
+
+      document.getElementById("esc-g3").innerText = `${fmtCOP(usd * p3, 0)} (+${fmtCOP((usd * p3) - cop, 0)})`;
+      document.getElementById("esc-g6").innerText = `${fmtCOP(usd * p6, 0)} (+${fmtCOP((usd * p6) - cop, 0)})`;
+      document.getElementById("esc-g10").innerText = `${fmtCOP(usd * p10, 0)} (+${fmtCOP((usd * p10) - cop, 0)})`;
+
+      const rendUsd = usd * 0.04;
+      document.getElementById("calc-rend-anual").innerText = `+$${rendUsd.toFixed(2)} USD (~${fmtCOP(rendUsd * tasa, 0)} COP)`;
+    }
+
+    function evaluarObjetivo() {
+      const obj = parseFloat(document.getElementById("input-objetivo").value || "0");
+      const el = document.getElementById("txt-objetivo");
+      const actual = tasaMercado || trmActual;
+      if (!obj || !actual) {
+        el.className = "text-[11px] text-[#94a3b8] mt-1.5 font-mono leading-snug";
+        el.innerText = "Escribe a qué precio te gustaría comprar.";
+        return;
+      }
+      const dif = actual - obj;
+      if (actual <= obj) {
+        el.className = "text-[11px] text-[#34d399] font-black mt-1.5 font-mono leading-snug";
+        el.innerText = `🎯 ¡LLEGÓ! Hoy (${fmtCOP(actual, 0)}) está bajo tu meta.`;
+      } else {
+        el.className = "text-[11px] text-[#fbbf24] mt-1.5 font-mono leading-snug";
+        el.innerText = `Falta bajar ${fmtCOP(dif, 0)} COP (${((dif / actual) * 100).toFixed(1)}%).`;
+      }
+    }
+
+    function compartirOCopiar() {
+      const actual = tasaMercado || trmActual;
+      const texto = [
+        "💵 *Radar del Dólar en Colombia (Hoy)*",
+        `• TRM Oficial: ${fmtCOP(trmActual, 2)} COP`,
+        `• Mercado en vivo: ${fmtCOP(actual, 2)} COP`,
+        p2pCompra ? `• Dólar Digital P2P: ${fmtCOP(p2pCompra, 0)} COP` : "",
+        `• Estado: ${veredictoActualTexto || "Consultado en vivo"}`,
+        `• Rango 30 días: ${document.getElementById("lbl-min").innerText} – ${document.getElementById("lbl-max").innerText} (Prom: ${document.getElementById("lbl-mid").innerText})`
+      ].filter(Boolean).join("\n");
+
+      if (navigator.share) {
+        navigator.share({ title: "Radar del Dólar en Colombia", text: texto }).catch(() => {});
+        return;
+      }
+      navigator.clipboard.writeText(texto).then(() => {
+        const b = document.getElementById("btn-copiar");
+        b.innerHTML = "<span>✅</span><span>¡Copiado!</span>";
+        setTimeout(() => { b.innerHTML = "<span>📲</span><span>Compartir</span>"; }, 2000);
+      }).catch(() => {
+        prompt("Copia este resumen:", texto);
+      });
+    }
+
+    window.addEventListener("resize", () => {
+      if (historialCompleto.length) renderizarGrafica();
+    });
+
+    cargarDatosEnVivo();
+    setInterval(cargarDatosEnVivo, 300000);
+  </script>
+</body>
+</html>
